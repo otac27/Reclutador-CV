@@ -154,11 +154,17 @@ export const searchJobs = async (query: string): Promise<{ text: string; sources
   }
 };
 
-export const createInterviewChat = (): Chat => {
+export const createInterviewChat = (resumeContext?: string): Chat => {
+  let instruction = INTERVIEW_INSTRUCTION;
+  
+  if (resumeContext) {
+      instruction += `\n\nCONTEXTO IMPORTANTE DEL CANDIDATO (Úsalo para personalizar preguntas):\n${resumeContext}\n\nINSTRUCCIÓN ADICIONAL: NO hagas preguntas genéricas. Pregunta sobre SU experiencia específica mencionada arriba (proyectos, empresas, roles).`;
+  }
+
   return ai.chats.create({
     model: MODEL_FLASH,
     config: {
-      systemInstruction: INTERVIEW_INSTRUCTION,
+      systemInstruction: instruction,
     },
   });
 };

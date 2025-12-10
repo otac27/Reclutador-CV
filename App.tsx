@@ -7,17 +7,32 @@ import { AppView } from './types';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.RESUME_OPTIMIZER);
+  
+  // Shared State (The "Brain" of the application)
+  const [sharedResumeText, setSharedResumeText] = useState<string>('');
+  const [sharedAnalysis, setSharedAnalysis] = useState<string>('');
 
   const renderContent = () => {
     switch (currentView) {
       case AppView.RESUME_OPTIMIZER:
-        return <ResumeOptimizer />;
+        return (
+          <ResumeOptimizer 
+            onAnalysisComplete={(text, analysis) => {
+              setSharedResumeText(text);
+              setSharedAnalysis(analysis);
+            }} 
+          />
+        );
       case AppView.JOB_FINDER:
-        return <JobFinder />;
+        return <JobFinder resumeContext={sharedResumeText} />;
       case AppView.INTERVIEW_PREP:
-        return <div className="max-w-4xl mx-auto w-full h-[600px] md:h-[800px] p-4"><InterviewCoach /></div>;
+        return (
+          <div className="max-w-4xl mx-auto w-full h-[600px] md:h-[800px] p-4">
+            <InterviewCoach resumeContext={sharedResumeText} />
+          </div>
+        );
       default:
-        return <ResumeOptimizer />;
+        return <ResumeOptimizer onAnalysisComplete={() => {}} />;
     }
   };
 

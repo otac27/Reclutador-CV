@@ -1,35 +1,64 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createInterviewChat } from '../services/gemini';
 import { Message } from '../types';
-import { MessageSquare, User, Mic, Send, Loader2, Bot } from 'lucide-react';
+import { MessageSquare, User, Mic, Send, Loader2, Bot, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { Chat, GenerateContentResponse } from '@google/genai';
 
-const InterviewCoach: React.FC = () => {
+interface InterviewCoachProps {
+  resumeContext?: string;
+}
+
+const InterviewCoach: React.FC<InterviewCoachProps> = ({ resumeContext }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       role: 'model',
-      content: '¡Hola! Soy tu Coach de Entrevistas AI. ¿Para qué rol te gustaría practicar hoy? (Ej: Desarrollador Java Senior, Gerente de Ventas, Asistente Administrativo, etc.)',
+      content: '¡Hola! Soy tu Coach de Entrevistas AI. ' + (resumeContext ? 'He leído tu CV y estoy listo para ponerte a prueba.' : '') + ' ¿Para qué rol te gustaría practicar hoy? (Ej: Desarrollador Java Senior, Gerente de Ventas, etc.)',
       timestamp: Date.now()
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  
   const chatRef = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasInitialized = useRef(false);
 
+  // Re-initialize chat if resume context changes significantly, but avoid loops
   useEffect(() => {
-    // Initialize chat session on mount
-    chatRef.current = createInterviewChat();
-  }, []);
+    chatRef.current = createInterviewChat(resumeContext);
+  }, [resumeContext]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const speakText = (text: string) => {
+    if (!audioEnabled || !window.speechSynthesis) return;
+    
+    // Stop any current speaking
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'es-ES'; // Spanish
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    
+    // Try to pick a decent voice
+    const voices = window.speechSynthesis.getVoices();
+    const spanishVoice = voices.find(v => v.lang.includes('es') && v.name.includes('Google')) || voices.find(v => v.lang.includes('es'));
+    if (spanishVoice) utterance.voice = spanishVoice;
+
+    window.speechSynthesis.speak(utterance);
+  };
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputValue.trim() || !chatRef.current || isLoading) return;
+
+    // Stop speaking if user interrupts
+    window.speechSynthesis.cancel();
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -66,6 +95,9 @@ const InterviewCoach: React.FC = () => {
          }
       }
 
+      // Speak result after complete
+      speakText(fullText);
+
     } catch (error) {
       console.error("Chat error", error);
       setMessages(prev => [...prev, {
@@ -82,14 +114,26 @@ const InterviewCoach: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-slate-50 relative rounded-xl overflow-hidden border border-slate-200 shadow-sm">
       {/* Header */}
-      <div className="bg-white p-4 border-b border-slate-200 flex items-center gap-3 shadow-sm z-10">
-        <div className="bg-indigo-100 p-2 rounded-lg">
-            <Bot className="w-6 h-6 text-indigo-600" />
+      <div className="bg-white p-4 border-b border-slate-200 flex items-center justify-between shadow-sm z-10">
+        <div className="flex items-center gap-3">
+            <div className="bg-indigo-100 p-2 rounded-lg">
+                <Bot className="w-6 h-6 text-indigo-600" />
+            </div>
+            <div>
+                <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                    Simulador de Entrevista
+                    {resumeContext && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full border border-green-200 flex items-center gap-1"><Sparkles className="w-3 h-3" /> CV Conectado</span>}
+                </h2>
+                <p className="text-xs text-slate-500">Practica respuestas conductuales (STAR)</p>
+            </div>
         </div>
-        <div>
-            <h2 className="font-bold text-slate-800">Simulador de Entrevista (STAR)</h2>
-            <p className="text-xs text-slate-500">Practica respuestas conductuales en un entorno seguro</p>
-        </div>
+        <button 
+            onClick={() => setAudioEnabled(!audioEnabled)}
+            className={`p-2 rounded-full transition-colors ${audioEnabled ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}
+            title={audioEnabled ? "Desactivar voz" : "Activar voz"}
+        >
+            {audioEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+        </button>
       </div>
 
       {/* Messages Area */}

@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { analyzeResume } from '../services/gemini';
 import { FileText, Send, Loader2, CheckCircle, AlertCircle, UploadCloud, FileType, X, Copy, Check } from 'lucide-react';
 
-const ResumeOptimizer: React.FC = () => {
+interface ResumeOptimizerProps {
+  onAnalysisComplete: (resumeText: string, analysis: string) => void;
+}
+
+const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({ onAnalysisComplete }) => {
   const [resumeText, setResumeText] = useState('');
   const [fileData, setFileData] = useState<{ name: string; type: string; data: string } | null>(null);
   const [jobDesc, setJobDesc] = useState('');
@@ -38,6 +42,7 @@ const ResumeOptimizer: React.FC = () => {
           type: file.type,
           data: base64Data
         });
+        setResumeText(`[Archivo PDF adjunto: ${file.name}]`);
       } 
       else if (validImageTypes.includes(file.type)) {
          const base64Full = await fileToBase64(file);
@@ -47,6 +52,7 @@ const ResumeOptimizer: React.FC = () => {
            type: file.type,
            data: base64Data
          });
+         setResumeText(`[Imagen de CV adjunta: ${file.name}]`);
       }
       else if (file.name.endsWith('.docx')) {
         if ((window as any).mammoth) {
@@ -123,6 +129,10 @@ const ResumeOptimizer: React.FC = () => {
 
       const result = await analyzeResume(input, jobDesc);
       setAnalysis(result);
+      
+      // Update global state
+      onAnalysisComplete(resumeText || "Contenido de CV Procesado", result);
+      
     } catch (err) {
       setError("Ocurrió un error en el análisis. Verifica tu conexión e intenta de nuevo.");
     } finally {
